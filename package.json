@@ -1,0 +1,37 @@
+{
+  "name": "ecommerce-fullstack",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@stripe/stripe-js": "^3.4.1",
+    "ably": "^1.2.48",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^9.2.2",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "express": "^4.18.2",
+    "next": "^14.2.35",
+    "next-auth": "^5.0.0-beta.30",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "stripe": "^15.11.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/express": "^4.17.21",
+    "@types/node": "20.11.30",
+    "@types/react": "18.2.66",
+    "@types/react-dom": "18.2.22",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^16.1.3",
+    "typescript": "5.6.3"
+  }
+}

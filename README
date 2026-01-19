@@ -1,0 +1,29 @@
+E-commerce Full-Stack (Next.js + Express + SQLite + Stripe + Ably)
+
+Quick start
+- Copy .env.example to .env and fill values
+- npm install
+- npm run dev
+
+The SQLite database will be automatically created in the ./data directory on first run.
+
+Key endpoints
+- /api/health
+- /api/health/db
+- /api/products
+- /api/checkout/create-payment-intent (POST)
+- /api/stripe/webhook (POST, needs Stripe CLI or Render webhook)
+
+Auth
+- NextAuth OAuth with Google and GitHub; admin allow-list via ADMIN_EMAILS
+
+Inventory
+- Reservation at PaymentIntent creation; release on cancel/failure; capture on success
+- Ably channel per variant: inventory:{variantId}, event: 'update', payload: { variantId, available }
+
+Database
+- SQLite with better-sqlite3 for simplicity and portability
+- Schema automatically initialized on startup
+
+Deploy
+- Render via render.yaml and Dockerfile with persistent disk for SQLite database
