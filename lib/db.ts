@@ -148,8 +148,9 @@ export const dbHelpers = {
   },
 
   // Transaction helper
-  transaction<T>(fn: () => T): T {
-    return db.transaction(fn)();
+  transaction<T>(fn: () => T | Promise<T>): T | Promise<T> {
+    const txn = db.transaction(fn);
+    return txn();
   },
 
   // Raw query helper

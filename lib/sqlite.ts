@@ -1,19 +1,20 @@
-import Database from 'better-sqlite3';
-import { join } from 'path';
+import Database from "better-sqlite3";
+import { join } from "path";
 
-const dbPath = process.env.DATABASE_PATH || join(process.cwd(), 'data', 'ecommerce.db');
+const dbPath =
+  process.env.DATABASE_PATH || join(process.cwd(), "data", "ecommerce.db");
 
 // Initialize SQLite database
 // @ts-ignore - better-sqlite3 types may not be fully compatible
 export const db: any = new Database(dbPath);
 
 // Enable WAL mode for better concurrency
-db.pragma('journal_mode = WAL');
+db.pragma("journal_mode = WAL");
 
 // Initialize schema
 export function initializeDatabase() {
   // Create tables based on the Prisma schema
-  
+
   // Users table (for NextAuth)
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -23,12 +24,25 @@ export function initializeDatabase() {
       email_verified INTEGER,
       image TEXT,
       role TEXT DEFAULT 'CUSTOMER',
+      password TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
     
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   `);
+
+  // Migration: Add password column if it doesn't exist (for existing databases)
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(users)").all();
+    const hasPassword = tableInfo.some((col: any) => col.name === "password");
+    if (!hasPassword) {
+      console.log("Migrating: Adding password column to users table...");
+      db.exec("ALTER TABLE users ADD COLUMN password TEXT");
+    }
+  } catch (error) {
+    console.error("Migration error:", error);
+  }
 
   // Accounts table (for NextAuth)
   db.exec(`
@@ -273,7 +287,7 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_shipping_addresses_order_id ON shipping_addresses(order_id);
   `);
 
-  console.log('✓ SQLite database schema initialized');
+  console.log("✓ SQLite database schema initialized");
 }
 
 // Helper function to generate CUID-like IDs

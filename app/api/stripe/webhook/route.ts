@@ -29,10 +29,31 @@ export async function POST(req: Request) {
     if (event.type === "payment_intent.succeeded") {
       const pi = event.data.object as any;
       await captureAllReservations(pi.id);
-      // publish updated inventory for affected variants
+      
+      // Create order record
       const reservations = await dbHelpers.findReservations({
         paymentIntentId: pi.id,
       });
+      
+      if (reservations.length > 0) {
+        const items = reservations.map((r: any) => ({
+          variantId: r.variant_id,
+          quantity: r.quantity,
+        }));
+        
+        // Create order via internal API
+        await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/orders`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paymentIntentId: pi.id,
+            email: pi.receipt_email || pi.metadata?.email || 'customer@example.com',
+            items,
+          }),
+        });
+      }
+      
+      // publish updated inventory for affected variants
       for (const r of reservations as any[]) {
         const inv = await dbHelpers.findInventory(r.variant_id) as any;
         if (inv)

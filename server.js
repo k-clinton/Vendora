@@ -13,8 +13,8 @@ const handle = app.getRequestHandler();
 app.prepare().then(() => {
   const server = express();
 
-  // Parse JSON bodies
-  server.use(express.json());
+  // Parse JSON bodies - REMOVED: Conflicts with Next.js App Router
+  // server.use(express.json());
 
   // All other routes handled by Next.js
   server.all('*', (req, res) => {

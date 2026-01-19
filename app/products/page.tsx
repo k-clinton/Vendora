@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { dbHelpers } from '@/lib/db';
+import { ProductSearch } from '@/components/product-search';
+import { ProductCard } from '@/components/product-card';
 
 export default async function ProductsPage() {
   const products = await dbHelpers.findProducts({
@@ -11,18 +13,22 @@ export default async function ProductsPage() {
   products.sort((a, b) => b.created_at - a.created_at);
   
   return (
-    <div>
-      <h1>Products</h1>
-      <ul>
-        {products.map((p) => (
-          <li key={p.id}>
-            <Link href={`/products/${p.slug}`}>{p.title}</Link>
-            {p.variants[0] && (
-              <span> — {p.variants[0].price / 100} {p.variants[0].currency}</span>
-            )}
-          </li>
-        ))}
-      </ul>
+    <div style={{ maxWidth: '1200px', margin: '40px auto' }}>
+      <h1 style={{ marginBottom: '32px' }}>Products</h1>
+      
+      <ProductSearch />
+      
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+        gap: '24px' 
+      }}>
+        {products.map((p) => {
+          return (
+            <ProductCard key={p.id} product={p} />
+          );
+        })}
+      </div>
     </div>
   );
 }

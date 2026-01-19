@@ -11,6 +11,7 @@ const nextConfig = {
       { protocol: 'https', hostname: '**' }
     ],
   },
+  // Trigger restart
 };
 
 module.exports = nextConfig;

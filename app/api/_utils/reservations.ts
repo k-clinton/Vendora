@@ -47,12 +47,12 @@ export async function captureReservation(paymentIntentId: string) {
 }
 
 export async function captureAllReservations(paymentIntentId: string): Promise<number> {
-  return dbHelpers.transaction(() => {
-    const reservations = dbHelpers.findReservations({ paymentIntentId, status: 'ACTIVE' }) as any[];
+  return dbHelpers.transaction(async () => {
+    const reservations = await dbHelpers.findReservations({ paymentIntentId, status: 'ACTIVE' });
     if (!reservations || !Array.isArray(reservations)) return 0;
-    for (const r of reservations) {
-      dbHelpers.updateInventory(r.variant_id, { reserved: -r.quantity, inStock: -r.quantity });
-      dbHelpers.updateReservation(r.id, { status: 'CAPTURED' });
+    for (const r of reservations as any[]) {
+      await dbHelpers.updateInventory(r.variant_id, { reserved: -r.quantity, inStock: -r.quantity });
+      await dbHelpers.updateReservation(r.id, { status: 'CAPTURED' });
     }
     return reservations.length;
   });
