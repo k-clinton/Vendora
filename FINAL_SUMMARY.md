@@ -168,7 +168,7 @@
 
 ### Instant Demo (No Setup Required)
 ```bash
-npm install --legacy-peer-deps
+npm install
 npm run seed
 npm run dev
 # Visit: http://localhost:3000/products

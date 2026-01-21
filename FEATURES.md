@@ -1,7 +1,7 @@
 # ✅ Completed Features
 
 ## 🔐 Authentication System
-- **NextAuth v5** integration with Google & GitHub OAuth
+- **NextAuth v5** integration with Google
 - Custom SQLite adapter for user/account/session storage
 - JWT-based sessions with role support (Admin/Customer)
 - Protected routes via middleware (`/admin/*`)

@@ -260,6 +260,7 @@ export function initializeDatabase() {
       rating INTEGER NOT NULL,
       comment TEXT,
       created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
       FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       UNIQUE(product_id, user_id)
@@ -268,6 +269,22 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews(product_id);
     CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews(user_id);
   `);
+
+  // Migration: Add updated_at column to reviews table if it doesn't exist
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info(reviews)").all();
+    const hasUpdatedAt = tableInfo.some(
+      (col: any) => col.name === "updated_at",
+    );
+    if (!hasUpdatedAt) {
+      console.log("Migrating: Adding updated_at column to reviews table...");
+      db.exec(
+        "ALTER TABLE reviews ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0",
+      );
+    }
+  } catch (error) {
+    console.error("Migration error (reviews):", error);
+  }
 
   // Shipping address table
   db.exec(`
