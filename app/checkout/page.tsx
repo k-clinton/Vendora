@@ -4,7 +4,9 @@ import { useState, useEffect, useMemo, Suspense } from 'react';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { CheckoutForm } from '@/components/checkout-form';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import Link from 'next/link';
 
 // Load Stripe with validation
 const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
@@ -16,10 +18,26 @@ if (stripePublishableKey && stripePublishableKey.startsWith('pk_')) {
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { data: session, status: sessionStatus } = useSession();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [stripeLoaded, setStripeLoaded] = useState(false);
+
+  // Check authentication first
+  useEffect(() => {
+    if (sessionStatus === 'loading') {
+      return; // Still checking session
+    }
+
+    if (sessionStatus === 'unauthenticated' || !session) {
+      // Redirect to sign in with callback to current checkout page
+      const items = searchParams.get('items');
+      const callbackUrl = `/checkout${items ? `?items=${items}` : ''}`;
+      router.push(`/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+    }
+  }, [session, sessionStatus, router, searchParams]);
 
   // Check if Stripe is configured
   useEffect(() => {
@@ -104,10 +122,47 @@ function CheckoutContent() {
     };
   }, [searchParams, stripeLoaded]);
 
-  if (loading) {
+  // Show loading while checking authentication
+  if (sessionStatus === 'loading' || loading) {
     return (
       <div style={{ maxWidth: '600px', margin: '40px auto', textAlign: 'center' }}>
         <p>Loading checkout...</p>
+      </div>
+    );
+  }
+
+  // If not authenticated, show message (shouldn't normally reach here due to redirect)
+  if (!session) {
+    return (
+      <div style={{ maxWidth: '600px', margin: '40px auto', padding: '20px' }}>
+        <h1 style={{ marginBottom: '16px' }}>Authentication Required</h1>
+        <div style={{ 
+          padding: '16px', 
+          background: '#fef3cd', 
+          border: '1px solid #f5d372',
+          borderRadius: '8px',
+          marginBottom: '24px'
+        }}>
+          <p style={{ margin: 0 }}>
+            You must be signed in to proceed with checkout.
+          </p>
+        </div>
+        <Link 
+          href={`/auth/signin?callbackUrl=${encodeURIComponent(window.location.href)}`}
+          style={{ 
+            display: 'inline-block',
+            padding: '12px 24px',
+            background: '#0070f3',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '6px',
+            marginRight: '12px',
+            fontWeight: '500'
+          }}
+        >
+          Sign In
+        </Link>
+        <Link href="/auth/register" style={{ color: '#0070f3' }}>Create Account</Link>
       </div>
     );
   }

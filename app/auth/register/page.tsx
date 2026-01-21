@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 
 export default function RegisterPage() {
@@ -9,6 +10,7 @@ export default function RegisterPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -34,8 +36,8 @@ export default function RegisterPage() {
         return;
       }
 
-      // Redirect to sign in 
-      router.push('/auth/signin?success=registered');
+      // Redirect to verification notice page
+      router.push('/auth/verify-email?email=' + encodeURIComponent(email));
     } catch (err) {
       setError('An error occurred');
       setLoading(false);
@@ -71,14 +73,41 @@ export default function RegisterPage() {
 
         <div style={{ marginBottom: '24px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              style={{ width: '100%', padding: '10px', paddingRight: '40px', borderRadius: '4px', border: '1px solid #ccc' }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                right: '10px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '18px',
+                color: '#666',
+                padding: '0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? '👁️' : '👁️‍🗨️'}
+            </button>
+          </div>
+          <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            Must be at least 6 characters
+          </p>
         </div>
 
         {error && (
@@ -105,6 +134,29 @@ export default function RegisterPage() {
           {loading ? 'Creating Account...' : 'Sign Up'}
         </button>
       </form>
+
+      <div style={{ margin: '24px 0', textAlign: 'center', color: '#666', fontSize: '14px' }}>or</div>
+
+      <button
+        type="button"
+        onClick={() => signIn('google', { callbackUrl: '/' })}
+        style={{
+          width: '100%',
+          padding: '12px',
+          background: 'white',
+          border: '1px solid #ddd',
+          borderRadius: '6px',
+          fontSize: '16px',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '10px'
+        }}
+      >
+        <img src="https://authjs.dev/img/providers/google.svg" alt="Google" width="20" height="20" />
+        Sign up with Google
+      </button>
 
       <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '14px' }}>
         Already have an account? <Link href="/auth/signin" style={{ color: '#0070f3' }}>Sign In</Link>

@@ -5,13 +5,18 @@ import { SQLiteAdapter } from "@/lib/auth-adapter";
 import { env } from "@/lib/env";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { type Role, isAdminRole } from "@/lib/permissions";
 
 declare module "next-auth" {
   interface Session extends DefaultSession {
     user: DefaultSession["user"] & {
-      role?: "ADMIN" | "CUSTOMER";
+      id?: string;
+      role?: Role;
       isAdmin?: boolean;
     };
+  }
+  interface User {
+    role?: Role;
   }
 }
 
@@ -28,6 +33,7 @@ export const authConfig = {
     Google({
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
+      allowDangerousEmailAccountLinking: true,
     }),
     Credentials({
       name: "Credentials",
@@ -43,6 +49,25 @@ export const authConfig = {
           .get(credentials.email) as any;
         if (!user || !user.password) return null;
 
+        // Check if user is disabled
+        if (user.disabled === 1) {
+          throw new Error(
+            "Account disabled: " + (user.disabled_reason || "Contact support"),
+          );
+        }
+
+        // Check if email is verified (allow admin bypass)
+        const isAdmin = adminEmails.has(credentials.email as string);
+        console.log(
+          `[Auth] Login attempt: ${credentials.email}, isAdmin: ${isAdmin}, email_verified: ${user.email_verified}`,
+        );
+
+        if (!isAdmin && !user.email_verified) {
+          throw new Error(
+            "Please verify your email before signing in. Check your inbox for the verification link.",
+          );
+        }
+
         const isValid = await bcrypt.compare(
           credentials.password as string,
           user.password,
@@ -54,7 +79,7 @@ export const authConfig = {
           name: user.name,
           email: user.email,
           image: user.image,
-          role: user.role,
+          role: user.role as Role,
         };
       },
     }),
@@ -66,17 +91,34 @@ export const authConfig = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        token.id = user.id;
         const email = user.email || "";
-        const isAdmin = adminEmails.has(email);
-        token.role = isAdmin ? "ADMIN" : "CUSTOMER";
-        // If user was fetched from DB (Credentials), trust that role, otherwise check admin list
-        if ((user as any).role === "ADMIN") token.role = "ADMIN";
+
+        // Get role from database for authenticated users
+        const dbUser = db
+          .prepare("SELECT role, disabled FROM users WHERE email = ?")
+          .get(email) as any;
+
+        if (dbUser) {
+          // Check if user is disabled
+          if (dbUser.disabled === 1) {
+            throw new Error("Account has been disabled");
+          }
+
+          // Use role from database, or check admin emails as fallback
+          token.role = dbUser.role as Role;
+        } else if (adminEmails.has(email)) {
+          token.role = "ADMIN";
+        } else {
+          token.role = "CUSTOMER";
+        }
       }
       return token;
     },
     async session({ session, token }) {
+      session.user.id = (token as any).id;
       session.user.role = (token as any).role ?? "CUSTOMER";
-      session.user.isAdmin = session.user.role === "ADMIN";
+      session.user.isAdmin = isAdminRole(session.user.role);
       return session;
     },
   },

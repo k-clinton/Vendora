@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db, generateId, dateToTimestamp } from "@/lib/db";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { generateEmailVerificationToken, sendVerificationEmail } from "@/lib/email";
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -28,14 +29,22 @@ export async function POST(req: Request) {
     const id = generateId();
     const now = dateToTimestamp(new Date());
 
+    // Create user with email_verified = 0
     db.prepare(
       `
-      INSERT INTO users (id, name, email, password, role, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'CUSTOMER', ?, ?)
+      INSERT INTO users (id, name, email, email_verified, password, role, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'CUSTOMER', ?, ?)
     `,
-    ).run(id, name, email, hashedPassword, now, now);
+    ).run(id, name, email, 0, hashedPassword, now, now);
 
-    return NextResponse.json({ success: true });
+    // Generate verification token and send email
+    const token = generateEmailVerificationToken(id);
+    await sendVerificationEmail(email, token);
+
+    return NextResponse.json({ 
+      success: true,
+      message: 'Registration successful. Please check your email to verify your account.'
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });

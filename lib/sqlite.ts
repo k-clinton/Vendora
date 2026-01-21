@@ -25,6 +25,9 @@ export function initializeDatabase() {
       image TEXT,
       role TEXT DEFAULT 'CUSTOMER',
       password TEXT,
+      disabled INTEGER DEFAULT 0,
+      disabled_reason TEXT,
+      disabled_at INTEGER,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -32,13 +35,56 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   `);
 
-  // Migration: Add password column if it doesn't exist (for existing databases)
+  // Migrations: Add missing columns if they don't exist (for existing databases)
   try {
-    const tableInfo = db.prepare("PRAGMA table_info(users)").all();
-    const hasPassword = tableInfo.some((col: any) => col.name === "password");
-    if (!hasPassword) {
+    // Users table migrations
+    const userTableInfo = db.prepare("PRAGMA table_info(users)").all();
+    const userColumns = userTableInfo.map((col: any) => col.name);
+    
+    if (!userColumns.includes("password")) {
       console.log("Migrating: Adding password column to users table...");
       db.exec("ALTER TABLE users ADD COLUMN password TEXT");
+    }
+    if (!userColumns.includes("disabled")) {
+      console.log("Migrating: Adding disabled column to users table...");
+      db.exec("ALTER TABLE users ADD COLUMN disabled INTEGER DEFAULT 0");
+    }
+    if (!userColumns.includes("disabled_reason")) {
+      console.log("Migrating: Adding disabled_reason column to users table...");
+      db.exec("ALTER TABLE users ADD COLUMN disabled_reason TEXT");
+    }
+    if (!userColumns.includes("disabled_at")) {
+      console.log("Migrating: Adding disabled_at column to users table...");
+      db.exec("ALTER TABLE users ADD COLUMN disabled_at INTEGER");
+    }
+
+    // Orders table migrations
+    const orderTableInfo = db.prepare("PRAGMA table_info(orders)").all();
+    const orderColumns = orderTableInfo.map((col: any) => col.name);
+    
+    if (!orderColumns.includes("payment_status")) {
+      console.log("Migrating: Adding payment_status column to orders table...");
+      db.exec("ALTER TABLE orders ADD COLUMN payment_status TEXT DEFAULT 'pending'");
+    }
+    if (!orderColumns.includes("tracking_number")) {
+      console.log("Migrating: Adding tracking_number column to orders table...");
+      db.exec("ALTER TABLE orders ADD COLUMN tracking_number TEXT");
+    }
+    if (!orderColumns.includes("refund_id")) {
+      console.log("Migrating: Adding refund_id column to orders table...");
+      db.exec("ALTER TABLE orders ADD COLUMN refund_id TEXT");
+    }
+    if (!orderColumns.includes("refund_amount")) {
+      console.log("Migrating: Adding refund_amount column to orders table...");
+      db.exec("ALTER TABLE orders ADD COLUMN refund_amount INTEGER");
+    }
+    if (!orderColumns.includes("refund_reason")) {
+      console.log("Migrating: Adding refund_reason column to orders table...");
+      db.exec("ALTER TABLE orders ADD COLUMN refund_reason TEXT");
+    }
+    if (!orderColumns.includes("refunded_at")) {
+      console.log("Migrating: Adding refunded_at column to orders table...");
+      db.exec("ALTER TABLE orders ADD COLUMN refunded_at INTEGER");
     }
   } catch (error) {
     console.error("Migration error:", error);
@@ -302,6 +348,82 @@ export function initializeDatabase() {
     );
     
     CREATE INDEX IF NOT EXISTS idx_shipping_addresses_order_id ON shipping_addresses(order_id);
+  `);
+
+  // Store settings table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS store_settings (
+      id TEXT PRIMARY KEY,
+      store_name TEXT DEFAULT 'My Store',
+      store_logo TEXT,
+      currency TEXT DEFAULT 'usd',
+      tax_rate REAL DEFAULT 0.0,
+      low_stock_threshold INTEGER DEFAULT 10,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+  `);
+
+  // Initialize default settings if not exists
+  const settingsCount = db.prepare('SELECT COUNT(*) as count FROM store_settings').get() as any;
+  if (settingsCount.count === 0) {
+    const now = dateToTimestamp(new Date());
+    db.prepare(`
+      INSERT INTO store_settings (id, store_name, currency, tax_rate, low_stock_threshold, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(generateId(), 'My Store', 'usd', 0.0, 10, now, now);
+  }
+
+  // Activity log table for admin tracking
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS activity_logs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      entity_type TEXT,
+      entity_id TEXT,
+      details TEXT,
+      ip_address TEXT,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON activity_logs(user_id);
+    CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON activity_logs(created_at);
+    CREATE INDEX IF NOT EXISTS idx_activity_logs_entity ON activity_logs(entity_type, entity_id);
+  `);
+
+  // Email verification tokens table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS email_verification_tokens (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      token TEXT UNIQUE NOT NULL,
+      expires_at INTEGER NOT NULL,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_user_id ON email_verification_tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_token ON email_verification_tokens(token);
+    CREATE INDEX IF NOT EXISTS idx_email_verification_tokens_expires_at ON email_verification_tokens(expires_at);
+  `);
+
+  // Password reset tokens table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      token TEXT UNIQUE NOT NULL,
+      expires_at INTEGER NOT NULL,
+      used INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+    CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token ON password_reset_tokens(token);
+    CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at);
   `);
 
   console.log("✓ SQLite database schema initialized");

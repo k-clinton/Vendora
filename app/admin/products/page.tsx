@@ -58,6 +58,9 @@ export default async function AdminProductsPage() {
                   </span>
                 </td>
                 <td style={{ padding: '12px', fontSize: '14px' }}>
+                  <Link href={`/admin/products/${product.id}/edit`} style={{ color: '#0070f3', marginRight: '12px' }}>
+                    Edit
+                  </Link>
                   <Link href={`/products/${product.slug}`} style={{ color: '#0070f3', marginRight: '12px' }}>
                     View
                   </Link>
